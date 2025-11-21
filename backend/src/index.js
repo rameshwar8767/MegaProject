@@ -7,7 +7,21 @@ dotenv.config({
     path: "./.env"
 });
 
-const port = process.env.Port || 3000;
+const port = process.env.PORT || 3000;
+
+connectDB()
+    .then(()=>{
+        app.listen(port,()=>{
+            console.log(`Server is running on port ${port}`);
+        });
+        console.log("Database connected successfully");
+    })
+    .catch((error)=>{
+        console.error("Database connection failed:",error);
+        process.exit(1);
+    });
+
+
 
 app.use(cors({
     origin:"localhost:5173",
@@ -21,6 +35,3 @@ app.get("/",(req,res)=>{
     res.send("API is working");
 })
 
-app.listen(port,()=>{
-    console.log(`Server is running on port ${port}`);
-})
