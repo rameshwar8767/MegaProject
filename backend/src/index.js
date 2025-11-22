@@ -23,13 +23,7 @@ connectDB()
 
 
 
-app.use(cors({
-    origin:"localhost:5173",
-    methods:["GET","POST","PUT","DELETE"],
-    credentials:true
-}))
-app.use(express.json());
-app.use(express.urlencoded({extended:true}));
+
 
 app.get("/",(req,res)=>{
     res.send("API is working");

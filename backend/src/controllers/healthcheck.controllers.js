@@ -1,4 +1,4 @@
-import {} from "../utils/api-responses.js";
+import {ApiResponse} from "../utils/api-response.js";
 
 const healthCheck= (req,res)=>{
     res.status(200).json(
