@@ -1,20 +1,25 @@
 import {Router} from "express";
-import { get } from "mongoose";
+import {getProjectNotes,createProjectNote,getProjectNoteById} from "../controllers/projectnote.controllers.js"
 import { validateProjectPermission } from "../middlewares/auth.middlewares";
-import { UserRolesEnum } from "../utils/constants";
+import { AvailableUserRoles, UserRolesEnum,updateProjectNote ,deleteProjectNote} from "../utils/constants";
 
 
 const router= Router();
 
 router.route("/:projectId")
     .get(
-        validateProjectPermission([UserRolesEnum.ADMIN, UserRolesEnum.MEMBER]),
+        validateProjectPermission(AvailableUserRoles),
         getProjectNotes
     )
     .post(
-        validateProjectPermission([UserRolesEnum.ADMIN], UserRolesEnum.MEMBER),
+        validateProjectPermission([UserRolesEnum.ADMIN]),
         createProjectNote
     )
 
+router
+    .route("/:projectId/n/:noteId")
+    .get(validateProjectPermission(AvailableUserRoles), getProjectNoteById)
+    .put(validateProjectPermission([UserRolesEnum.ADMIN]), updateProjectNote)
+    .delete(validateProjectPermission([UserRolesEnum.ADMIN]), deleteProjectNote);  
 
 export default router;
