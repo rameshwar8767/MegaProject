@@ -1,10 +1,19 @@
 import {asyncHandler} from "../utils/async-handler.js";
-import user from "../models/user.models.js";
+import { User } from "../models/user.models.js";
+import ApiError from "../utils/api-error.js";
 
 const registerUser = asyncHandler(async(req,res)=>{
 
     const {email,username,password,role}= req.body;
 
+    const existingUser= await user.findOne({email});
+    if(existingUser){
+        throw new ApiError(400,"User with this email already exists");
+    }
+    const newUser = User.create({
+        this.email:email,
+        
+    })
     
 
 });
