@@ -363,9 +363,83 @@ const changePassword = asyncHandler(async (req, res) => {
 });
 
 
-const getUserProfile = asyncHandler(async(req,res)=>{});
+const getUserProfile = asyncHandler(async (req, res) => {
+    const userId = req.user?._id;
 
-const updateUserProfile = asyncHandler(async(req,res)=>{});
+    if (!userId) {
+        throw new ApiError(401, "Unauthorized");
+    }
+
+    const user = await User.findById(userId).select(
+        "-refreshToken -emailVerificationToken -emailVerificationTokenExpiry -forgotPasswordToken -forgotPasswordTokenExpiry"
+    );
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    return res
+        .status(200)
+        .json(
+        new ApiResponse(200, user, "User profile fetched successfully")
+        );
+});
+
+
+const updateUserProfile = asyncHandler(async (req, res) => {
+    // 1. Extract logged-in user's ID
+    const userId = req.user?._id;
+
+    if (!userId) {
+        throw new ApiError(401, "Unauthorized");
+    }
+
+    // 2. Extract fields from body
+    const { username, fullName } = req.body;
+
+    if (!username && !fullName) {
+        throw new ApiError(400, "At least one field is required to update");
+    }
+
+    // 3. Find existing user
+    const user = await User.findById(userId);
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    // 4. If username is being updated → ensure unique username
+    if (username && username.toLowerCase() !== user.username) {
+        const usernameExists = await User.findOne({ username: username.toLowerCase() });
+        if (usernameExists) {
+        throw new ApiError(400, "Username already taken");
+        }
+    }
+
+    // 5. Apply updates
+    if (username) user.username = username.toLowerCase();
+    if (fullName) user.fullName = fullName;
+
+    // 6. Save updated user
+    await user.save();
+
+    // 7. Send response
+    return res.status(200).json(
+        new ApiResponse(
+        200,
+        {
+            _id: user._id,
+            email: user.email,
+            username: user.username,
+            fullName: user.fullName,
+            isEmailVerified: user.isEmailVerified,
+            avatar: user.avatar,
+        },
+        "User profile updated successfully"
+        )
+    );
+});
+
 
 
 export {registerUser, loginUser, logoutUser, verifyEmail, resendVerificationEmail, forgotPassword, resetPassword, refreshAccessToken, changePassword, getUserProfile, updateUserProfile};
