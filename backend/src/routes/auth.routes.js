@@ -8,4 +8,5 @@ const router= Router();
 
 router.post("/register",userRegistrationValidator(),validate,registerUser)
 
+
 export default router;
