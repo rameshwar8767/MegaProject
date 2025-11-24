@@ -2,6 +2,9 @@ import {asyncHandler} from "../utils/async-handler.js";
 import { User } from "../models/user.models.js";
 import ApiError from "../utils/api-error.js";
 import ApiResponse from "../utils/api-response.js";
+import crypto from "crypto";
+import {sendMail,forgotPasswordMailGenContent,emailVerificationMailGenContent} from "../utils/mail.js";
+
 
 const registerUser = asyncHandler(async(req,res)=>{
 
@@ -168,8 +171,52 @@ const forgotPassword = asyncHandler(async(req,res)=>{
 
 });
 
-const resetPassword = asyncHandler(async(req,res)=>{
-    
+const resetPassword = asyncHandler(async (req, res) => {
+
+    // 1. Extract token from URL
+    const { token } = req.params;
+    if (!token) {
+        throw new ApiError(400, "Invalid or missing token");
+    }
+
+    // 2. Extract new password
+    const { newPassword } = req.body;
+    if (!newPassword) {
+        throw new ApiError(400, "New password is required");
+    }
+
+    // 3. Hash the received token (because DB stores only hashed token)
+    const hashedToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+    // 4. Find user by token + expiry
+    const user = await User.findOne({
+        forgotPasswordToken: hashedToken,
+        forgotPasswordTokenExpiry: { $gt: Date.now() }, // token not expired
+    }).select("+password");
+
+    if (!user) {
+        throw new ApiError(400, "Invalid or expired token");
+    }
+
+    // 5. Update password (pre-save hook will hash it)
+    user.password = newPassword;
+
+    // 6. Clear password reset fields
+    user.forgotPasswordToken = undefined;
+    user.forgotPasswordTokenExpiry = undefined;
+
+    // Optional: Logout from all devices
+    user.refreshToken = undefined;
+
+    // 7. Save updated user
+    await user.save();
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, null, "Password has been reset successfully"));
 });
 
 const refreshAccessToken = asyncHandler(async(req,res)=>{});
