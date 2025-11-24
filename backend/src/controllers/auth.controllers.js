@@ -4,6 +4,7 @@ import ApiError from "../utils/api-error.js";
 import ApiResponse from "../utils/api-response.js";
 import crypto, { hash } from "crypto";
 import {sendMail,forgotPasswordMailGenContent,emailVerificationMailGenContent} from "../utils/mail.js";
+import jwt from "jsonwebtoken";
 
 
 const registerUser = asyncHandler(async(req,res)=>{
@@ -257,8 +258,60 @@ const resetPassword = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, null, "Password has been reset successfully"));
 });
 
-const refreshAccessToken = asyncHandler(async(req,res)=>{
-    
+const refreshAccessToken = asyncHandler(async (req, res) => {
+    // 1. Extract refresh token from cookie or header
+    const cookieRefresh = req.cookies?.refreshToken;
+    const headerRefresh = req.headers["authorization"]
+        ? req.headers["authorization"].replace("Bearer ", "")
+        : null;
+
+    const refreshToken = cookieRefresh || headerRefresh;
+
+    if (!refreshToken) {
+        throw new ApiError(401, "Refresh token is missing");
+    }
+
+    // 2. Verify token
+    let decodedToken;
+    try {
+        decodedToken = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    } catch (error) {
+        throw new ApiError(401, "Invalid or expired refresh token");
+    }
+
+    if (!decodedToken?._id) {
+        throw new ApiError(401, "Invalid refresh token");
+    }
+
+    // 3. Find user in DB
+    const user = await User.findById(decodedToken._id).select("+refreshToken");
+
+    if (!user) {
+        throw new ApiError(401, "User not found");
+    }
+
+    // 4. Compare stored refresh token
+    if (user.refreshToken !== refreshToken) {
+        throw new ApiError(401, "Refresh token does not match");
+    }
+
+    // 5. Generate new access token
+    const newAccessToken = user.generateAccessToken();
+
+    if (!newAccessToken) {
+        throw new ApiError(500, "Failed to generate new access token");
+    }
+
+    // 6. Send token to client
+    return res
+        .status(200)
+        .json(
+        new ApiResponse(
+            200,
+            { accessToken: newAccessToken },
+            "Access token refreshed successfully"
+        )
+        );
 });
 
 const changePassword = asyncHandler(async(req,res)=>{});
