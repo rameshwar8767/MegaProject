@@ -17,8 +17,8 @@ const userRegistrationValidator = ()=>{
         body("password")
             .trim()
             .notEmpty().withMessage("Password is required")
-            .isLength({ min: 8 })
-            .withMessage("Password should be at least 8 characters long")
+            .isLength({ min: 6 })
+            .withMessage("Password should be at least 6 characters long")
             .isStrongPassword()
             .withMessage("Password should contain uppercase, lowercase, number, and symbol"),
 
@@ -38,8 +38,8 @@ const userLoginValidator = ()=>{
         body("password")
             .trim()
             .notEmpty().withMessage("Password is required")
-            .isLength({ min: 8 })
-            .withMessage("Password must be at least 8 characters"),
+            .isLength({ min: 6 })
+            .withMessage("Password must be at least 6 characters"),
     ];
 }
 

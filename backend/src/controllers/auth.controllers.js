@@ -1,7 +1,7 @@
 import {asyncHandler} from "../utils/async-handler.js";
 import { User } from "../models/user.models.js";
-import ApiError from "../utils/api-error.js";
-import ApiResponse from "../utils/api-response.js";
+import {ApiError} from "../utils/api-error.js";
+import {ApiResponse} from "../utils/api-response.js";
 import crypto, { hash } from "crypto";
 import {sendMail,forgotPasswordMailGenContent,emailVerificationMailGenContent} from "../utils/mail.js";
 import jwt from "jsonwebtoken";
