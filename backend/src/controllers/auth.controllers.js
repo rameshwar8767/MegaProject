@@ -5,7 +5,7 @@ import ApiResponse from "../utils/api-response.js";
 
 const registerUser = asyncHandler(async(req,res)=>{
 
-    const {email,username,password,role,fullName}= req.body;
+    const {email,username,password,fullName}= req.body;
 
     const existingUser= await User.findOne({email});
     if(existingUser){
@@ -15,7 +15,6 @@ const registerUser = asyncHandler(async(req,res)=>{
         email:email,
         username:username,
         password:password,
-        role:role,
         fullName:fullName
     })
 
@@ -24,25 +23,94 @@ const registerUser = asyncHandler(async(req,res)=>{
     }
     return res
         .status(201)
-        .json(new ApiResponse(201,"User registered successfully",{
-            _id:newUser._id,
-            email:newUser.email,
-            username:newUser.username,
-            role:newUser.role,
-            fullName:newUser.fullName
-        }));
+        .json(
+            new ApiResponse(
+                201,
+                {
+                    _id: newUser._id,
+                    email: newUser.email,
+                    username: newUser.username,
+                    fullName: newUser.fullName,
+                    isEmailVerified: newUser.isEmailVerified,
+                },
+                "User registered successfully"
+            )
+         );
 });
 
 
 
 
 const loginUser = asyncHandler(async(req,res)=>{
+    const {email,password}= req.body;
 
+    const user = await User.findOne({ email }).select("+password");
+    if (!user) {
+        throw new ApiError(400, "Invalid email or password");
+    }
+
+    const isPasswordValid = await user.comparePassword(password);
+    if(!isPasswordValid){
+        throw new ApiError(400,"Invalid email or password");
+    }
+    
+     // Generate tokens
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+
+    user.refreshToken = refreshToken;
+    await user.save({ validateBeforeSave: false });
+
+    const options = {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+    };
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200,"User logged in successfully",{
+            _id:user._id,
+            email:user.email,
+            username:user.username,
+            role:user.role,
+            fullName:user.fullName
+        }));
 });
 
-const logoutUser = asyncHandler(async(req,res)=>{});
+const logoutUser = asyncHandler(async (req, res) => {
+    const userId = req.user?._id;
 
-const verifyEmail = asyncHandler(async(req,res)=>{});
+    if (!userId) {
+        throw new ApiError(401, "Unauthorized");
+    }
+
+  // Remove refresh token from DB
+    await User.findByIdAndUpdate(
+        userId,
+        {
+            $unset: { refreshToken: "" },
+        },
+        { new: true }
+    );
+
+    const options = {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+    };
+
+    // Clear cookies
+    return res
+        .status(200)
+        .clearCookie("accessToken", options)
+        .clearCookie("refreshToken", options)
+        .json(new ApiResponse(200, null, "Logged out successfully"));
+});
+
+const verifyEmail = asyncHandler(async(req,res)=>{
+    
+});
 
 const resendVerificationEmail = asyncHandler(async(req,res)=>{});
 

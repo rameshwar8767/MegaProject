@@ -7,11 +7,11 @@ const userSchema = new mongoose.Schema({
     avatar:{
         type: {
             url: String,
-            localpath: String
+            localpath: String,
         },
         default:{
             url: `https://placehold.co/400`,
-            localpath: ""
+            localpath: "",
         }
     },
     username:{
@@ -32,7 +32,8 @@ const userSchema = new mongoose.Schema({
     password:{
         type: String,
         required: true,
-        minlength: 6
+        minlength: 6,
+        select: false,
     },
     fullName:{
         type: String,
