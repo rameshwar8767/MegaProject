@@ -2,7 +2,7 @@ import {asyncHandler} from "../utils/async-handler.js";
 import { User } from "../models/user.models.js";
 import ApiError from "../utils/api-error.js";
 import ApiResponse from "../utils/api-response.js";
-import crypto from "crypto";
+import crypto, { hash } from "crypto";
 import {sendMail,forgotPasswordMailGenContent,emailVerificationMailGenContent} from "../utils/mail.js";
 
 
@@ -111,8 +111,46 @@ const logoutUser = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, null, "Logged out successfully"));
 });
 
-const verifyEmail = asyncHandler(async(req,res)=>{
+const verifyEmail = asyncHandler(async (req, res) => {
+    const { token } = req.params;
 
+    // 1. Validate token
+    if (!token) {
+        throw new ApiError(400, "Invalid or missing token");
+    }
+
+    // 2. Hash the token (DB stores hashed version)
+    const hashedToken = crypto
+        .createHash("sha256")
+        .update(token)
+        .digest("hex");
+
+    // 3. Find user with matching token + not expired
+    const user = await User.findOne({
+        emailVerificationToken: hashedToken,
+        emailVerificationTokenExpiry: { $gt: Date.now() },
+    });
+
+    if (!user) {
+        throw new ApiError(400, "Token is invalid or expired");
+    }
+
+    // 4. Mark email as verified
+    user.isEmailVerified = true;
+
+    // 5. Clear token fields
+    user.emailVerificationToken = undefined;
+    user.emailVerificationTokenExpiry = undefined;
+
+    // 6. Save user
+    await user.save();
+
+    // 7. Response
+    return res
+        .status(200)
+        .json(
+        new ApiResponse(200, null, "Email verified successfully")
+        );
 });
 
 const resendVerificationEmail = asyncHandler(async(req,res)=>{});
@@ -219,7 +257,9 @@ const resetPassword = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, null, "Password has been reset successfully"));
 });
 
-const refreshAccessToken = asyncHandler(async(req,res)=>{});
+const refreshAccessToken = asyncHandler(async(req,res)=>{
+    
+});
 
 const changePassword = asyncHandler(async(req,res)=>{});
 
