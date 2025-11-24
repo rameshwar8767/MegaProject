@@ -314,7 +314,54 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         );
 });
 
-const changePassword = asyncHandler(async(req,res)=>{});
+const changePassword = asyncHandler(async (req, res) => {
+    const { oldPassword, newPassword } = req.body;
+
+    // 1. Validate input fields
+    if (!oldPassword || !newPassword) {
+        throw new ApiError(400, "All fields are required");
+    }
+
+    // 2. Ensure user is logged in (auth middleware sets req.user)
+    const userId = req.user?._id;
+
+    if (!userId) {
+        throw new ApiError(401, "Unauthorized access");
+    }
+
+    // 3. Find user and include password
+    const user = await User.findById(userId).select("+password");
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    // 4. Verify old password
+    const isValidOldPassword = await user.comparePassword(oldPassword);
+
+    if (!isValidOldPassword) {
+        throw new ApiError(400, "Old password is incorrect");
+    }
+
+    // 5. Prevent reuse of same password
+    if (oldPassword === newPassword) {
+        throw new ApiError(400, "New password must be different");
+    }
+
+    // 6. Update password (hashed automatically by pre-save)
+    user.password = newPassword;
+
+    // 7. OPTIONAL: Invalidate refresh token to log out all devices
+    user.refreshToken = undefined;
+
+    // 8. Save updated password
+    await user.save();
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, null, "Password changed successfully"));
+});
+
 
 const getUserProfile = asyncHandler(async(req,res)=>{});
 
