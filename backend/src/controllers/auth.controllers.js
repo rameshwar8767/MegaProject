@@ -7,80 +7,146 @@ import {sendMail,forgotPasswordMailGenContent,emailVerificationMailGenContent} f
 import jwt from "jsonwebtoken";
 
 
-const registerUser = asyncHandler(async(req,res)=>{
+const registerUser = asyncHandler(async (req, res) => {
+    const { email, username, password, fullName } = req.body;
 
-    const {email,username,password,fullName}= req.body;
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedUsername = username.trim().toLowerCase();
 
-    const existingUser= await User.findOne({email});
-    if(existingUser){
-        throw new ApiError(400,"User with this email already exists");
+    // 1. Validate email uniqueness
+    const existingEmail = await User.findOne({ email: normalizedEmail });
+    if (existingEmail) {
+        throw new ApiError(400, "User with this email already exists");
     }
+
+    // 2. Validate username uniqueness
+    const existingUsername = await User.findOne({ username: normalizedUsername });
+    if (existingUsername) {
+        throw new ApiError(400, "Username is already taken");
+    }
+
+    // 3. Create user
     const newUser = await User.create({
-        email:email,
-        username:username,
-        password:password,
-        fullName:fullName
-    })
+        email: normalizedEmail,
+        username: normalizedUsername,
+        password,
+        fullName: fullName.trim(),
+    });
 
-    if(!newUser){
-        throw new ApiError(500,"Failed to register user");
+    if (!newUser) {
+        throw new ApiError(500, "Failed to register user");
     }
-    return res
-        .status(201)
-        .json(
-            new ApiResponse(
-                201,
-                {
-                    _id: newUser._id,
-                    email: newUser.email,
-                    username: newUser.username,
-                    fullName: newUser.fullName,
-                    isEmailVerified: newUser.isEmailVerified,
-                },
-                "User registered successfully"
-            )
-         );
+
+    // 4. Generate email verification token
+    const emailTokenData = newUser.generateTemporaryToken();
+    newUser.emailVerificationToken = emailTokenData.hashedToken;
+    newUser.emailVerificationTokenExpiry = emailTokenData.tokenExpiry;
+
+    await newUser.save({ validateBeforeSave: false });
+
+    // 5. Prepare email verification link
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${emailTokenData.unHashedToken}`;
+
+    const mailgenContent = emailVerificationMailGenContent(
+        newUser.username,
+        verificationUrl
+    );
+
+    // 6. Send verification email
+    try {
+    await sendMail({
+        to: newUser.email,
+        subject: "Verify Your Email Address",
+        mailgenContent: mailgenContent,
+    });
+} catch (error) {
+    console.error("🔥 REAL EMAIL SEND ERROR:", error);
+
+    newUser.emailVerificationToken = undefined;
+    newUser.emailVerificationTokenExpiry = undefined;
+    await newUser.save({ validateBeforeSave: false });
+
+    throw new ApiError(500, error.message || "Failed to send verification email");
+}
+
+
+    return res.status(201).json(
+        new ApiResponse(
+        201,
+        {
+            _id: newUser._id,
+            email: newUser.email,
+            username: newUser.username,
+            fullName: newUser.fullName,
+            isEmailVerified: newUser.isEmailVerified,
+        },
+        "User registered successfully. Please verify your email."
+        )
+    );
 });
 
 
 
 
-const loginUser = asyncHandler(async(req,res)=>{
-    const {email,password}= req.body;
 
-    const user = await User.findOne({ email }).select("+password");
-    if (!user) {
-        throw new ApiError(400, "Invalid email or password");
-    }
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
 
-    const isPasswordValid = await user.comparePassword(password);
-    if(!isPasswordValid){
-        throw new ApiError(400,"Invalid email or password");
-    }
-    
-     // Generate tokens
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+  // 1. Find user & include password
+  const user = await User.findOne({ email }).select("+password");
+  if (!user) {
+    throw new ApiError(400, "Invalid email or password");
+  }
 
-    user.refreshToken = refreshToken;
-    await user.save({ validateBeforeSave: false });
+  // 2. Validate password
+  const isPasswordValid = await user.comparePassword(password);
+  if (!isPasswordValid) {
+    throw new ApiError(400, "Invalid email or password");
+  }
 
-    const options = {
-        httpOnly: true,
-        secure: true,
-        sameSite: "strict",
-    };
+  // 3. Generate tokens
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+  const emailToken = user.generateTemporaryToken();
 
-    return res
-        .status(200)
-        .json(new ApiResponse(200,"User logged in successfully",{
-            _id:user._id,
-            email:user.email,
-            username:user.username,
-            role:user.role,
-            fullName:user.fullName
-        }));
+  // 4. Save refresh token in DB
+  user.refreshToken = refreshToken;
+  user.emailVerificationToken = emailToken.hashedToken;
+  user.emailVerificationTokenExpiry = emailToken.tokenExpiry;   
+  await user.save({ validateBeforeSave: false });
+
+  // 5. Cookie settings
+  const options = {
+    httpOnly: true,
+    secure: false,         // ❗ Set false for local development if needed
+    sameSite: "strict",
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  };
+
+  // 6. Send cookies + response
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          accessToken,
+          refreshToken,
+          user: {
+            _id: user._id,
+            email: user.email,
+            username: user.username,
+            fullName: user.fullName,
+            isEmailVerified: user.isEmailVerified,
+          }
+        },
+        "User logged in successfully"
+      )
+    );
 });
+
 
 const logoutUser = asyncHandler(async (req, res) => {
     const userId = req.user?._id;
@@ -100,9 +166,11 @@ const logoutUser = asyncHandler(async (req, res) => {
 
     const options = {
         httpOnly: true,
-        secure: true,
-        sameSite: "strict",
+        secure: false,     // IMPORTANT for local testing
+        sameSite: "lax",
+        path: "/"
     };
+
 
     // Clear cookies
     return res
