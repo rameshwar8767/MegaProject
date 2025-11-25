@@ -36,6 +36,7 @@ const registerUser = asyncHandler(async (req, res) => {
     if (!newUser) {
         throw new ApiError(500, "Failed to register user");
     }
+    
 
     // 4. Generate email verification token
     const emailTokenData = newUser.generateTemporaryToken();
