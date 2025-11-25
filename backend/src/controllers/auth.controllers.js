@@ -59,15 +59,15 @@ const registerUser = asyncHandler(async (req, res) => {
         subject: "Verify Your Email Address",
         mailgenContent: mailgenContent,
     });
-} catch (error) {
-    console.error("🔥 REAL EMAIL SEND ERROR:", error);
+    } catch (error) {
+        console.error("🔥 REAL EMAIL SEND ERROR:", error);
 
-    newUser.emailVerificationToken = undefined;
-    newUser.emailVerificationTokenExpiry = undefined;
-    await newUser.save({ validateBeforeSave: false });
+        newUser.emailVerificationToken = undefined;
+        newUser.emailVerificationTokenExpiry = undefined;
+        await newUser.save({ validateBeforeSave: false });
 
-    throw new ApiError(500, error.message || "Failed to send verification email");
-}
+        throw new ApiError(500, error.message || "Failed to send verification email");
+    }
 
 
     return res.status(201).json(
@@ -90,61 +90,61 @@ const registerUser = asyncHandler(async (req, res) => {
 
 
 const loginUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+    const { email, password } = req.body;
 
-  // 1. Find user & include password
-  const user = await User.findOne({ email }).select("+password");
-  if (!user) {
-    throw new ApiError(400, "Invalid email or password");
-  }
+    // 1. Find user & include password
+    const user = await User.findOne({ email }).select("+password");
+    if (!user) {
+        throw new ApiError(400, "Invalid email or password");
+    }
 
-  // 2. Validate password
-  const isPasswordValid = await user.comparePassword(password);
-  if (!isPasswordValid) {
-    throw new ApiError(400, "Invalid email or password");
-  }
+    // 2. Validate password
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+        throw new ApiError(400, "Invalid email or password");
+    }
 
-  // 3. Generate tokens
-  const accessToken = user.generateAccessToken();
-  const refreshToken = user.generateRefreshToken();
-  const emailToken = user.generateTemporaryToken();
+    // 3. Generate tokens
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
+    const emailToken = user.generateTemporaryToken();
 
-  // 4. Save refresh token in DB
-  user.refreshToken = refreshToken;
-  user.emailVerificationToken = emailToken.hashedToken;
-  user.emailVerificationTokenExpiry = emailToken.tokenExpiry;   
-  await user.save({ validateBeforeSave: false });
+    // 4. Save refresh token in DB
+    user.refreshToken = refreshToken;
+    user.emailVerificationToken = emailToken.hashedToken;
+    user.emailVerificationTokenExpiry = emailToken.tokenExpiry;   
+    await user.save({ validateBeforeSave: false });
 
-  // 5. Cookie settings
-  const options = {
-    httpOnly: true,
-    secure: false,         // ❗ Set false for local development if needed
-    sameSite: "strict",
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  };
+    // 5. Cookie settings
+    const options = {
+        httpOnly: true,
+        secure: false,         // ❗ Set false for local development if needed
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    };
 
-  // 6. Send cookies + response
-  return res
-    .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .json(
-      new ApiResponse(
-        200,
-        {
-          accessToken,
-          refreshToken,
-          user: {
-            _id: user._id,
-            email: user.email,
-            username: user.username,
-            fullName: user.fullName,
-            isEmailVerified: user.isEmailVerified,
-          }
-        },
-        "User logged in successfully"
-      )
-    );
+    // 6. Send cookies + response
+    return res
+        .status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(
+        new ApiResponse(
+            200,
+            {
+            accessToken,
+            refreshToken,
+            user: {
+                _id: user._id,
+                email: user.email,
+                username: user.username,
+                fullName: user.fullName,
+                isEmailVerified: user.isEmailVerified,
+            }
+            },
+            "User logged in successfully"
+        )
+        );
 });
 
 
@@ -222,7 +222,63 @@ const verifyEmail = asyncHandler(async (req, res) => {
         );
 });
 
-const resendVerificationEmail = asyncHandler(async(req,res)=>{});
+const resendVerificationEmail = asyncHandler(async(req,res)=>{
+    const {email} = req.body;
+
+    if(!email){
+        throw new ApiError(400, "Email is required");
+    }
+
+    const existingUser = await User.findOne({email});
+    if(!existingUser){
+        throw new ApiError(400, "User not found");
+    }
+
+    if(existingUser.isEmailVerified === true){
+        throw new ApiError(400, "Email already verified");
+    }
+    const emailTokenData = exitingUser.generateTemporaryToken();
+    existingUser.emailVerificationToken = emailTokenData.hashedToken;
+    existingUser.emailVerificationTokenExpiry = emailTokenData.tokenExpiry;
+
+    await existingUser.save({ validateBeforeSave: false });
+
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${emailTokenData.unHashedToken}`;
+
+    const mailgenContent = emailVerificationMailGenContent(
+        existingUser.username,
+        verificationUrl
+    );
+    
+    try {
+        await sendMail({
+        to: existingUser.email,
+        subject: "Verify Your Email Address",
+        mailgenContent: mailgenContent,
+        });
+        return res.status(200).json(
+        new ApiResponse(
+            200,
+            null,
+            "Verification email resent successfully. Please check your inbox."
+        )
+        );  
+        
+    } catch (error) {
+        
+        console.error("🔥 REAL EMAIL SEND ERROR:", error);
+        
+        exitingUser.emailVerificationToken = undefined;
+        exitingUser.emailVerificationTokenExpiry = undefined;
+        await exitingUser.save({ validateBeforeSave: false });
+        
+        throw new ApiError(500, error.message || "Failed to send verification email");
+    }
+
+    
+
+
+});
 
 const forgotPassword = asyncHandler(async(req,res)=>{
     const {email} = req.body;
