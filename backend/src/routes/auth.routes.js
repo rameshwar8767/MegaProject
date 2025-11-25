@@ -1,23 +1,40 @@
-import {Router} from "express";
-import { loginUser, logoutUser, registerUser, resetPassword, verifyEmail } from "../controllers/auth.controllers.js";
+import { Router } from "express";
+import { 
+    loginUser, 
+    logoutUser, 
+    registerUser, 
+    resendVerificationEmail, 
+    resetPassword, 
+    verifyEmail,
+    forgotPassword,  
+    refreshAccessToken, 
+    changePassword, 
+    getUserProfile, 
+    updateUserProfile 
+} from "../controllers/auth.controllers.js";
+
 import { validate } from "../middlewares/validator.middlewares.js";
 import { userLoginValidator, userRegistrationValidator } from "../validators/index.js";
 import { verifyJWT } from "../middlewares/auth.middlewares.js";
 
+const router = Router();
 
-const router= Router();
+// Public Routes
+router.post("/register", userRegistrationValidator(), validate, registerUser);
+router.post("/login", userLoginValidator(), validate, loginUser);
 
-router.post("/register",userRegistrationValidator(),validate,registerUser);
+router.get("/verify-email/:token", verifyEmail);
+router.post("/resend-verification-email", resendVerificationEmail);
 
-router.post("/login",userLoginValidator(),validate,loginUser);
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password/:token", resetPassword);
 
-router.get("/logout",verifyJWT,logoutUser);
+router.get("/refresh-access-token", refreshAccessToken);
 
-router.get("/verify-email/:token",verifyJWT,verifyEmail);
-
-router.post("/reset-password/:token", verifyJWT,resetPassword);
-
-
-
+// Protected Routes (require login)
+router.get("/logout", verifyJWT, logoutUser);
+router.put("/change-password", verifyJWT, changePassword);
+router.get("/user-profile", verifyJWT, getUserProfile);
+router.put("/update-profile", verifyJWT, updateUserProfile);
 
 export default router;
