@@ -10,15 +10,7 @@ const getAllProjects = asyncHandler(async(req,res)=>{
         .sort({createdAt: -1});
 
     if(!projects ||projects.length === 0){
-        return res
-        .status(200)
-        .json(
-        new ApiResponse(
-            200,
-           {projects: []},
-            "No projects found"
-        )
-        );
+       throw new ApiError(400,"Projects Not Found");
     }
 
     return res
@@ -34,7 +26,41 @@ const getAllProjects = asyncHandler(async(req,res)=>{
 
 });
 
-const getProjectById = asyncHandler(async(req,res)=>{});
+import { Project } from "../models/project.models.js";
+import { ApiError } from "../utils/api-error.js";
+import { ApiResponse } from "../utils/api-response.js";
+import { asyncHandler } from "../utils/async-handler.js";
+
+const getProjectById = asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+
+    // Validate ID param
+    if (!projectId) {
+        throw new ApiError(400, "Project ID is required");
+    }
+
+    // Validate MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        throw new ApiError(400, "Invalid Project ID");
+    }
+
+    // Fetch project
+    const project = await Project.findById(projectId)
+        .populate("createdBy", "name email");
+
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            project,
+            "Project fetched successfully"
+        )
+    );
+});
+
 
 const createProject = asyncHandler(async(req,res)=>{});
 
