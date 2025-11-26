@@ -26,10 +26,7 @@ const getAllProjects = asyncHandler(async(req,res)=>{
 
 });
 
-import { Project } from "../models/project.models.js";
-import { ApiError } from "../utils/api-error.js";
-import { ApiResponse } from "../utils/api-response.js";
-import { asyncHandler } from "../utils/async-handler.js";
+
 
 const getProjectById = asyncHandler(async (req, res) => {
     const { projectId } = req.params;
@@ -62,7 +59,42 @@ const getProjectById = asyncHandler(async (req, res) => {
 });
 
 
-const createProject = asyncHandler(async(req,res)=>{});
+
+const createProject = asyncHandler(async (req, res) => {
+    const { name, description } = req.body;
+    const userId = req.user?._id; // from auth middleware
+
+    // Validate name
+    if (!name) {
+        throw new ApiError(400, "Project name is required");
+    }
+
+    // Check if project already exists
+    const existingProject = await Project.findOne({ name });
+    if (existingProject) {
+        throw new ApiError(400, "Project with this name already exists");
+    }
+
+    // Create project
+    const project = await Project.create({
+        name,
+        description,
+        createdBy: userId
+    });
+
+    if (!project) {
+        throw new ApiError(500, "Project could not be created");
+    }
+
+    return res.status(201).json(
+        new ApiResponse(
+            201,
+            project,
+            "Project created successfully"
+        )
+    );
+});
+
 
 const updateProject = asyncHandler(async(req,res)=>{});
 
