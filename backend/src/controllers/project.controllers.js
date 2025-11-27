@@ -149,7 +149,32 @@ export const updateProject = asyncHandler(async (req, res) => {
     );
 });
 
-const deleteProject = asyncHandler(async(req,res)=>{});
+const deleteProject = asyncHandler(async(req,res)=>{
+    const {projectId}= req.params;
+    
+    if (!projectId) {
+        throw new ApiError(400, "Project ID is required");
+    }
+
+    // Ensure valid MongoDB ID
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        throw new ApiError(400, "Invalid Project ID");
+    }
+
+    const deletedProject = await Project.findByIdAndDelete(projectId);
+    if(!deletedProject){
+        throw new ApiError(404,"Project not found");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            deletedProject,
+            "Project deleted successfully"
+        )
+    );
+
+});
 
 const addMemberToProject = asyncHandler(async(req,res)=>{});
 
