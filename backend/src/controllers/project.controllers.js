@@ -2,6 +2,7 @@ import { Project } from "../models/project.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/async-handler";
+import { ProjectMember } from "../models/projectmember.models.js";
 
 const getAllProjects = asyncHandler(async(req,res)=>{
     
@@ -176,14 +177,73 @@ const deleteProject = asyncHandler(async(req,res)=>{
 
 });
 
-const addMemberToProject = asyncHandler(async(req,res)=>{});
 
-const removeMemberFromProject = asyncHandler(async(req,res)=>{});
+const addMemberToProject = asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+    const { memberId, role } = req.body;
 
-const getProjectMembers = asyncHandler(async(req,res)=>{});
+    // Validate projectId
+    if (!projectId) {
+        throw new ApiError(400, "Project ID is required");
+    }
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        throw new ApiError(400, "Invalid Project ID");
+    }
 
-const updateProjectMemberRole = asyncHandler(async(req,res)=>{});
+    // Validate memberId
+    if (!memberId) {
+        throw new ApiError(400, "Member ID is required");
+    }
+    if (!mongoose.Types.ObjectId.isValid(memberId)) {
+        throw new ApiError(400, "Invalid Member ID");
+    }
 
-const deleteProjectMember = asyncHandler(async(req,res)=>{});
+    // Check if project exists
+    const project = await Project.findById(projectId);
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    }
+
+    // Check if member already exists in the project
+    const existingMember = await ProjectMember.findOne({ 
+        project: projectId, 
+        user: memberId 
+    });
+
+    if (existingMember) {
+        throw new ApiError(400, "User already added to this project");
+    }
+
+    // Create new member record
+    const newMember = await ProjectMember.create({
+        user: memberId,
+        project: projectId,
+        role: role || UserRolesEnum.MEMBER
+    });
+
+    return res.status(201).json(
+        new ApiResponse(
+            201,
+            newMember,
+            "Member added to project successfully"
+        )
+    );
+});
+
+const removeMemberFromProject = asyncHandler(async(req,res)=>{
+
+});
+
+const getProjectMembers = asyncHandler(async(req,res)=>{
+
+});
+
+const updateProjectMemberRole = asyncHandler(async(req,res)=>{
+
+});
+
+const deleteProjectMember = asyncHandler(async(req,res)=>{
+    
+});
 
 export {getAllProjects, getProjectById, createProject, updateProject, deleteProject, addMemberToProject, removeMemberFromProject, getProjectMembers, updateProjectMemberRole, deleteProjectMember};
