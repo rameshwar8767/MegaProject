@@ -277,10 +277,43 @@ const removeMemberFromProject = asyncHandler(async (req, res) => {
         )
     );
 });
-const getProjectMembers = asyncHandler(async(req,res)=>{
 
+
+const getProjectMembers = asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+
+    // Validate projectId
+    if (!projectId) {
+        throw new ApiError(400, "Project ID is required");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        throw new ApiError(400, "Invalid Project ID");
+    }
+
+    // Check if project exists
+    const project = await Project.findById(projectId);
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    }
+
+    // Fetch members
+    const projectMembers = await ProjectMember.find({ project: projectId })
+        .populate("user", "name email") // fetch user details
+        .populate("project", "name");   // optional
+
+    if (!projectMembers || projectMembers.length === 0) {
+        throw new ApiError(404, "No members found for this project");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            projectMembers,
+            "Project members fetched successfully"
+        )
+    );
 });
-
 const updateProjectMemberRole = asyncHandler(async(req,res)=>{
 
 });
@@ -289,6 +322,16 @@ const deleteProjectMember = asyncHandler(async(req,res)=>{
     
 });
 
+
 export {
     getAllProjects, 
-    getProjectById, createProject, updateProject, deleteProject, addMemberToProject, removeMemberFromProject, getProjectMembers, updateProjectMemberRole, deleteProjectMember};
+    getProjectById, 
+    createProject, 
+    updateProject, 
+    deleteProject, 
+    addMemberToProject, 
+    removeMemberFromProject, 
+    getProjectMembers, 
+    updateProjectMemberRole, 
+    deleteProjectMember
+};
