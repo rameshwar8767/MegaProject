@@ -230,10 +230,53 @@ const addMemberToProject = asyncHandler(async (req, res) => {
     );
 });
 
-const removeMemberFromProject = asyncHandler(async(req,res)=>{
+const removeMemberFromProject = asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+    const { memberId } = req.body;
 
+    // Validate projectId
+    if (!projectId) {
+        throw new ApiError(400, "Project ID is required");
+    }
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        throw new ApiError(400, "Invalid Project ID");
+    }
+
+    // Validate memberId
+    if (!memberId) {
+        throw new ApiError(400, "Member ID is required");
+    }
+    if (!mongoose.Types.ObjectId.isValid(memberId)) {
+        throw new ApiError(400, "Invalid Member ID");
+    }
+
+    // Check if project exists
+    const project = await Project.findById(projectId);
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    }
+
+    // Check if member exists in the project
+    const existingMember = await ProjectMember.findOne({
+        project: projectId,
+        user: memberId
+    });
+
+    if (!existingMember) {
+        throw new ApiError(400, "User is not a member of this project");
+    }
+
+    // Delete member entry
+    await ProjectMember.findByIdAndDelete(existingMember._id);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            { projectId, memberId },
+            "Member removed from project successfully"
+        )
+    );
 });
-
 const getProjectMembers = asyncHandler(async(req,res)=>{
 
 });
@@ -246,4 +289,6 @@ const deleteProjectMember = asyncHandler(async(req,res)=>{
     
 });
 
-export {getAllProjects, getProjectById, createProject, updateProject, deleteProject, addMemberToProject, removeMemberFromProject, getProjectMembers, updateProjectMemberRole, deleteProjectMember};
+export {
+    getAllProjects, 
+    getProjectById, createProject, updateProject, deleteProject, addMemberToProject, removeMemberFromProject, getProjectMembers, updateProjectMemberRole, deleteProjectMember};
