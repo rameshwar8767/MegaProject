@@ -4,13 +4,13 @@ import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/async-handler";
 
 const getAllProjects = asyncHandler(async(req,res)=>{
-   
+    
     const projects = await Project.find()
         .populate("createdBy","name email")
         .sort({createdAt: -1});
 
     if(!projects ||projects.length === 0){
-       throw new ApiError(400,"Projects Not Found");
+        throw new ApiError(400,"Projects Not Found");
     }
 
     return res
@@ -18,7 +18,7 @@ const getAllProjects = asyncHandler(async(req,res)=>{
         .json(
         new ApiResponse(
             200,
-           projects,
+            projects,
             "Projects fetched successfully"
         )
         );
@@ -96,7 +96,58 @@ const createProject = asyncHandler(async (req, res) => {
 });
 
 
-const updateProject = asyncHandler(async(req,res)=>{});
+export const updateProject = asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+    const { name, description } = req.body;
+
+    // Validate Project ID
+    if (!projectId) {
+        throw new ApiError(400, "Project ID is required");
+    }
+
+    // Ensure valid MongoDB ID
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        throw new ApiError(400, "Invalid Project ID");
+    }
+
+    // Check if project exists
+    const project = await Project.findById(projectId);
+    if (!project) {
+        throw new ApiError(404, "Project not found");
+    }
+
+    // Check if updated name already exists
+    if (name && name !== project.name) {
+        const existingProject = await Project.findOne({ name });
+        if (existingProject) {
+            throw new ApiError(400, "Project name already exists");
+        }
+    }
+
+    // Prepare update fields
+    const updatedData = {};
+    if (name) updatedData.name = name;
+    if (description) updatedData.description = description;
+
+    // Update the project
+    const updatedProject = await Project.findByIdAndUpdate(
+        projectId,
+        updatedData,
+        { new: true, runValidators: true }
+    );
+
+    if (!updatedProject) {
+        throw new ApiError(500, "Project could not be updated");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            updatedProject,
+            "Project updated successfully"
+        )
+    );
+});
 
 const deleteProject = asyncHandler(async(req,res)=>{});
 
