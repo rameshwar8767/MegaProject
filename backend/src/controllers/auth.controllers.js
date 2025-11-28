@@ -567,4 +567,16 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 
 
 
-export {registerUser, loginUser, logoutUser, verifyEmail, resendVerificationEmail, forgotPassword, resetPassword, refreshAccessToken, changePassword, getUserProfile, updateUserProfile};
+export {
+    registerUser, 
+    loginUser, 
+    logoutUser, 
+    verifyEmail, 
+    resendVerificationEmail, 
+    forgotPassword, 
+    resetPassword, 
+    refreshAccessToken, 
+    changePassword, 
+    getUserProfile, 
+    updateUserProfile
+};
