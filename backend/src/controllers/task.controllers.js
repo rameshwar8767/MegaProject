@@ -74,64 +74,30 @@ const createTask = asyncHandler(async (req, res) => {
 });
 
 
-const getTask = asyncHandler(async (req, res) => {
-    const { taskId } = req.params;
+export const getTasksAssignedByUser = asyncHandler(async (req, res) => {
+    const { userId } = req.body;
 
-    if (!taskId) {
-        throw new ApiError(400, "Task ID is required");
+    if (!userId) {
+        throw new ApiError(400, "User ID is required");
     }
 
-    if (!mongoose.Types.ObjectId.isValid(taskId)) {
-        throw new ApiError(400, "Invalid Task ID");
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new ApiError(400, "Invalid User ID");
     }
 
-    const task = await Task.findById(taskId)
-        .populate("project", "name")          
-        .populate("assignedTo", "name email") 
-        .populate("assignedBy", "name email");
+    const tasks = await Task.find({ assignedBy: userId })
+        .populate("assignedTo", "name email")
+        .populate("project", "name");
 
-    if (!task) {
-        throw new ApiError(404, "Task not found");
-    }
-
-    return res
-        .status(200)
-        .json(new ApiResponse(200, task, "Task fetched successfully"));
-});
-
-const getTaskById = asyncHandler(async(req,res)=>{
-    const {taskId} = req.body;
-
-    if (!taskId) {
-        throw new ApiError(400, "Task ID is required");
-    }
-
-    if (!mongoose.Types.ObjectId.isValid(taskId)) {
-        throw new ApiError(400, "Invalid Task ID");
-    }
-
-    const task = await Task.findById(taskId)
-        .populate("project", "name")          
-        .populate("assignedTo", "name email") 
-        .populate("assignedBy", "name email");
-
-    if (!task) {
-        throw new ApiError(404, "Task not found");
+    if (tasks.length === 0) {
+        throw new ApiError(404, "No tasks assigned by this user");
     }
 
     return res
         .status(200)
-        .json(new ApiResponse(200, task, "Task fetched successfully"));
+        .json(new ApiResponse(200, tasks, "Tasks assigned by user fetched successfully"));
 });
 
-const getTasksAssignedToUser = asyncHandler(async(req,res)=>{
-
-});
-
-
-const getTasksAssignedByUser = asyncHandler(async(req,res)=>{
-
-});
 
 const updateTask = asyncHandler(async(req,res)=>{
 
