@@ -99,8 +99,96 @@ export const getTasksAssignedByUser = asyncHandler(async (req, res) => {
 });
 
 
-const updateTask = asyncHandler(async(req,res)=>{
+const updateTask = asyncHandler(async (req, res) => {
+    
+    const { taskId } = req.params;
 
+    const {
+        title,
+        description,
+        assignedTo,
+        status,
+        dueDate,
+        projectId,
+        assignedBy
+    } = req.body;
+
+   
+    if (!taskId) {
+        throw new ApiError(400, "Task ID is required");
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(taskId)) {
+        throw new ApiError(400, "Task ID is not valid");
+    }
+
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new ApiError(404, "Task not found");
+    }
+
+    if (projectId) {
+        if (!mongoose.Types.ObjectId.isValid(projectId)) {
+            throw new ApiError(400, "Invalid Project ID");
+        }
+
+        const project = await Project.findById(projectId);
+        if (!project) {
+            throw new ApiError(404, "Project not found");
+        }
+    }
+
+    if (assignedTo) {
+        if (!mongoose.Types.ObjectId.isValid(assignedTo)) {
+            throw new ApiError(400, "Invalid AssignedTo ID");
+        }
+
+        const user = await User.findById(assignedTo);
+        if (!user) {
+            throw new ApiError(404, "Assigned To user not found");
+        }
+    }
+
+    if (assignedBy) {
+        if (!mongoose.Types.ObjectId.isValid(assignedBy)) {
+            throw new ApiError(400, "Invalid AssignedBy ID");
+        }
+
+        const user = await User.findById(assignedBy);
+        if (!user) {
+            throw new ApiError(404, "Assigned By user not found");
+        }
+    }
+
+    let attachments = task.attachments;
+
+    if (req.files && req.files.length > 0) {
+        const newFiles = req.files.map(file => ({
+            url: file.path,
+            mimetype: file.mimetype,
+            size: file.size
+        }));
+
+        attachments = [...attachments, ...newFiles];
+    }
+
+
+    task.title = title || task.title;
+    task.description = description || task.description;
+    task.assignedTo = assignedTo || task.assignedTo;
+    task.assignedBy = assignedBy || task.assignedBy;
+    task.status = status || task.status;
+    task.dueDate = dueDate || task.dueDate;
+    task.project = projectId || task.project;
+    task.attachments = attachments;
+
+    
+    const updatedTask = await task.save();
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, updatedTask, "Task updated successfully"));
 });
 
 const updateTaskStatus = asyncHandler(async(req,res)=>{
