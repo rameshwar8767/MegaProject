@@ -183,7 +183,6 @@ const updateTask = asyncHandler(async (req, res) => {
     task.project = projectId || task.project;
     task.attachments = attachments;
 
-    
     const updatedTask = await task.save();
 
     return res
