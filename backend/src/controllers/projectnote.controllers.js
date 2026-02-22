@@ -1,5 +1,5 @@
 import {asyncHandler} from "../utils/async-handler.js";
-import Project from "../models/project.models.js";
+import {Project} from "../models/project.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { ProjectNote } from "../models/projectnote.models.js";
 import { ApiResponse } from "../utils/api-response.js";

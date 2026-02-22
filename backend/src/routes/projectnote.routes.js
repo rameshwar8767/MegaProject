@@ -1,25 +1,18 @@
-import {Router} from "express";
-import {getProjectNotes,createProjectNote,getProjectNoteById} from "../controllers/projectnote.controllers.js"
-import { validateProjectPermission } from "../middlewares/auth.middlewares";
-import { AvailableUserRoles, UserRolesEnum,updateProjectNote ,deleteProjectNote} from "../utils/constants";
+import { Router } from "express";
+import {
+    getProjectNotes,
+    getProjectNoteById,
+    createProjectNote,
+    updateProjectNote,
+    deleteProjectNote
+} from "../controllers/projectnote.controllers.js";
 
+const router = Router({ mergeParams: true });
 
-const router= Router();
-
-router.route("/:projectId")
-    .get(
-        validateProjectPermission(AvailableUserRoles),
-        getProjectNotes
-    )
-    .post(
-        validateProjectPermission([UserRolesEnum.ADMIN]),
-        createProjectNote
-    )
-
-router
-    .route("/:projectId/n/:noteId")
-    .get(validateProjectPermission(AvailableUserRoles), getProjectNoteById)
-    .put(validateProjectPermission([UserRolesEnum.ADMIN]), updateProjectNote)
-    .delete(validateProjectPermission([UserRolesEnum.ADMIN]), deleteProjectNote);  
+router.get("/", getProjectNotes);
+router.post("/", createProjectNote);
+router.get("/:noteId", getProjectNoteById);
+router.put("/:noteId", updateProjectNote);
+router.delete("/:noteId", deleteProjectNote);
 
 export default router;
