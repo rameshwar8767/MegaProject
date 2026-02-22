@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
-import { SubTask } from "../models/subtask.models";
-import mongoose from "mongoose";
+import { SubTask } from "../models/subtask.models.js";
+import {asyncHandler} from "../utils/async-handler.js";
+
 
 const createSubTask = asyncHandler(async(req,res)=>{
     const {title, task, dueDate} = req.body;
