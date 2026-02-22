@@ -10,10 +10,12 @@ app.use(cookieParser());
 // router imports
 import healthCheckRouter from "./routes/healthcheck.routes.js";
 import authRouter from "./routes/auth.routes.js";
+import taskRouter from "./routes/task.routes.js";
 import subTaskRouter from "./routes/subtask.routes.js";
 
 app.use("/api/v1/healthcheck", healthCheckRouter);
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/tasks", taskRouter);
 app.use("/api/v1/subtasks", subTaskRouter);
 
 

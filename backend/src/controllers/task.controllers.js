@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
-import asyncHandler from "../utils/asyncHandler.js";
-import { ApiError } from "../utils/ApiError.js";
-import { ApiResponse } from "../utils/ApiResponse.js";
-import { Task } from "../models/task.model.js";
-import { Project } from "../models/project.model.js";
-import { User } from "../models/user.model.js";
+import {asyncHandler} from "../utils/async-handler.js";
+import { ApiError } from "../utils/api-error.js";
+import { ApiResponse } from "../utils/api-response.js";
+import { Task } from "../models/task.models.js";
+import { Project } from "../models/project.models.js";
+import { User } from "../models/user.models.js";
 
 const createTask = asyncHandler(async (req, res) => {
 
@@ -73,8 +73,28 @@ const createTask = asyncHandler(async (req, res) => {
         .json(new ApiResponse(201, task, "Task created successfully"));
 });
 
+const getTaskById = asyncHandler(async (req, res) => {
+    const { taskId } = req.params;
 
-export const getTasksAssignedByUser = asyncHandler(async (req, res) => {
+    if (!mongoose.Types.ObjectId.isValid(taskId)) {
+        throw new ApiError(400, "Invalid Task ID");
+    }
+
+    const task = await Task.findById(taskId)
+        .populate("assignedTo", "name email")
+        .populate("assignedBy", "name email")
+        .populate("project", "name description");
+
+    if (!task) {
+        throw new ApiError(404, "Task not found");
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, task, "Task fetched successfully"));
+});
+
+const getTasksAssignedByUser = asyncHandler(async (req, res) => {
     const { userId } = req.body;
 
     if (!userId) {
@@ -191,19 +211,151 @@ const updateTask = asyncHandler(async (req, res) => {
 });
 
 const updateTaskStatus = asyncHandler(async(req,res)=>{
+    const { taskId } = req.params;
+    const { status } = req.body;
 
+    if (!mongoose.Types.ObjectId.isValid(taskId)) {
+        throw new ApiError(400, "Invalid Task ID");
+    }
+
+    if (!AvailableTaskStatuses.includes(status)) {
+        throw new ApiError(400, "Invalid Task Status");
+    }
+
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new ApiError(404, "Task not found");
+    }
+
+    task.status = status;
+    await task.save();
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, task, "Task status updated successfully"));
 });
 
 const addTaskAttachment = asyncHandler(async(req,res)=>{
+    const { taskId } = req.params;
 
+    if (!mongoose.Types.ObjectId.isValid(taskId)) {
+        throw new ApiError(400, "Invalid Task ID");
+    }
+
+    const task = await Task.findById(taskId);
+
+    if (!task) {
+        throw new ApiError(404, "Task not found");
+    }
+
+    if (!req.files || req.files.length === 0) {
+        throw new ApiError(400, "No files uploaded");
+    }
+
+    const newAttachments = req.files.map(file => ({
+        url: file.path,
+        mimetype: file.mimetype,
+        size: file.size
+    }));
+
+    task.attachments.push(...newAttachments);
+
+    await task.save();
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, task, "Attachments added successfully"));
 });
 
 const removeTaskAttachment = asyncHandler(async(req,res)=>{
+    const { taskId, attachmentId} = req.params;
 
+    if(!mongoose.Types.ObjectId.isValid(taskId)){
+        throw new ApiError(400,"Invalid Task ID");
+    }
+
+    const task = await Task.findById(taskId);
+
+    if(!task){
+        throw new ApiError(404, "Task not found");
+    }
+
+    task.attachments = task.attachments.filter(
+        (attachment) => attachment._id.toString() !== attachmentId
+    );
+
+    await task.save();
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, task, "Attachment removed successfully"));
 });
 
 const deleteTask = asyncHandler(async(req,res)=>{
+    const {taskId} = req.params;
 
+    if(!mongoose.Types.ObjectId.isValid(taskId)){
+        throw new ApiError(400,"Invalid Task ID");
+    }
+
+    const task = await Task.findById(taskId);
+
+    if(!task){
+        throw new ApiError(404, "Task not found");
+    }
+
+    await task.deleteOne();
+
+    return res.status(200)
+        .json(new ApiResponse(200, null,"Task deleted successfully"));
+});
+
+const getTasksAssignedToUser = asyncHandler(async (req, res) => {
+    const { userId } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+        throw new ApiError(400, "Invalid User ID");
+    }
+
+    const tasks = await Task.find({ assignedTo: userId })
+        .populate("assignedBy", "name email")
+        .populate("project", "name");
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, tasks, "Tasks assigned to user fetched successfully"));
+});
+
+const getTasks = asyncHandler(async (req, res) => {
+    const { project, status, assignedTo } = req.query;
+
+    let filter = {};
+
+    if (project) {
+        if (!mongoose.Types.ObjectId.isValid(project))
+            throw new ApiError(400, "Invalid Project ID");
+        filter.project = project;
+    }
+
+    if (status) {
+        filter.status = status;
+    }
+
+    if (assignedTo) {
+        if (!mongoose.Types.ObjectId.isValid(assignedTo))
+            throw new ApiError(400, "Invalid AssignedTo ID");
+        filter.assignedTo = assignedTo;
+    }
+
+    const tasks = await Task.find(filter)
+        .populate("assignedTo", "name email")
+        .populate("project", "name")
+        .sort({ createdAt: -1 });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, tasks, "Tasks fetched successfully"));
 });
 
 export {
