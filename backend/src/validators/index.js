@@ -18,9 +18,9 @@ const userRegistrationValidator = ()=>{
             .trim()
             .notEmpty().withMessage("Password is required")
             .isLength({ min: 6 })
-            .withMessage("Password should be at least 6 characters long")
-            .isStrongPassword()
-            .withMessage("Password should contain uppercase, lowercase, number, and symbol"),
+            .withMessage("Password should be at least 6 characters long"),
+            // .isStrongPassword()
+            // .withMessage("Password should contain uppercase, lowercase, number, and symbol"),
 
         body("fullName")
             .trim()
