@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import { SubTask } from "../models/subtask.models";
-
+import mongoose from "mongoose";
 
 const createSubTask = asyncHandler(async(req,res)=>{
     const {title, task, dueDate} = req.body;
@@ -100,5 +100,33 @@ const updateSubTask = asyncHandler(async(req,res)=>{
 })
 
 const deleteSubTask = asyncHandler(async(req,res)=>{
-    
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        res.status(400);
+        throw new Error("Invalid SubTask ID");
+    }
+
+    const subTask = await SubTask.findOneAndDelete({
+        _id: id,
+        createdBy: req.user._id,
+    });
+
+    if (!subTask) {
+        res.status(404);
+        throw new Error("SubTask not found or unauthorized");
+    }
+
+    res.status(200).json({
+        success: true,
+        message: "SubTask deleted successfully",
+    });
 })
+
+export{
+    createSubTask,
+    getSubTaskById,
+    getSubTasksByTask,
+    updateSubTask,
+    deleteSubTask
+}
